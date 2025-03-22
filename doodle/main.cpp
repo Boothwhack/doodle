@@ -1,7 +1,6 @@
 #include <array>
 #include <filesystem>
 #include <fstream>
-#include <iostream>
 #include <print>
 #include <utility>
 #include <vector>
@@ -11,6 +10,8 @@
 #include <GLFW/glfw3.h>
 #include <toml++/toml.hpp>
 
+#include "gl.h"
+
 namespace fs = std::filesystem;
 
 class GLFWContext {
@@ -18,200 +19,6 @@ public:
   GLFWContext() { glfwInit(); }
   ~GLFWContext() { glfwTerminate(); }
 };
-
-namespace gl {
-class CompilationError : public std::runtime_error {
-public:
-  explicit CompilationError(const std::string &log)
-      : std::runtime_error(std::format("Failed to compile shader: {}", log)) {}
-};
-
-class LinkError : public std::runtime_error {
-public:
-  explicit LinkError(const std::string &log)
-      : std::runtime_error(std::format("Failed to link program: {}", log)) {}
-};
-
-class Shader {
-  GLuint handle;
-
-public:
-  explicit Shader(GLenum type) { handle = glCreateShader(type); }
-  Shader(const Shader &) = delete;
-  Shader(Shader &&other) noexcept : handle(other.handle) { other.handle = 0; }
-  ~Shader() { glDeleteShader(handle); }
-
-  Shader &operator=(const Shader &) = delete;
-  Shader &operator=(Shader &&other) noexcept {
-    // delete this object's handle
-    glDeleteShader(handle);
-
-    // move handle out of other into this
-    handle = other.handle;
-    other.handle = 0;
-
-    return *this;
-  }
-
-  void add_source(std::string_view source) const {
-    auto source_data{source.data()};
-    auto length{static_cast<GLint>(source.length())};
-    glShaderSource(handle, 1, &source_data, &length);
-  }
-
-  void compile() const {
-    glCompileShader(handle);
-
-    // retrieve compile status and check if it failed
-    GLint compile_status;
-    glGetShaderiv(handle, GL_COMPILE_STATUS, &compile_status);
-
-    if (compile_status != GL_TRUE) {
-      // get log length
-      GLint log_length;
-      glGetShaderiv(handle, GL_INFO_LOG_LENGTH, &log_length);
-
-      // prepare log output storage
-      std::string log;
-      log.resize(log_length);
-
-      // get log and actual log length
-      GLint actual_length;
-      glGetShaderInfoLog(handle, log_length, &actual_length, log.data());
-      log.resize(actual_length);
-
-      throw CompilationError(log);
-    }
-  }
-
-  // implicit conversion to GLuint OpenGL handle
-  operator GLuint() const { return handle; }
-};
-
-class Program {
-  GLuint handle;
-
-public:
-  Program() : handle(glCreateProgram()) {}
-  Program(const Program &) = delete;
-  Program(Program &&other) noexcept : handle(other.handle) { other.handle = 0; }
-  ~Program() { glDeleteProgram(handle); }
-
-  Program &operator=(const Program &) = delete;
-  Program &operator=(Program &&other) noexcept {
-    // delete this object's handle
-    glDeleteProgram(handle);
-
-    // move handle out of other and into this
-    handle = other.handle;
-    other.handle = 0;
-
-    return *this;
-  }
-
-  void attach_shader(std::convertible_to<GLuint> auto &&shader) const {
-    glAttachShader(handle, static_cast<GLuint>(shader));
-  }
-
-  void link() const {
-    glLinkProgram(handle);
-
-    // retrieve compile status and check if it failed
-    GLint link_status;
-    glGetProgramiv(handle, GL_LINK_STATUS, &link_status);
-
-    if (link_status != GL_TRUE) {
-      // get log length
-      GLint log_length;
-      glGetProgramiv(handle, GL_INFO_LOG_LENGTH, &log_length);
-
-      // prepare log output storage
-      std::string log;
-      log.resize(log_length);
-
-      // get log and actual log length
-      GLint actual_length;
-      glGetProgramInfoLog(handle, log_length, &actual_length, log.data());
-      log.resize(actual_length);
-
-      throw LinkError(log);
-    }
-  }
-
-  // implicit conversion to GLuint OpenGL handle
-  operator GLuint() const { return handle; }
-};
-
-class Buffer {
-  GLuint handle{};
-
-public:
-  Buffer() { glCreateBuffers(1, &handle); }
-  Buffer(const Buffer &) = delete;
-  Buffer(Buffer &&other) noexcept : handle(other.handle) { other.handle = 0; }
-  ~Buffer() { glDeleteBuffers(1, &handle); }
-
-  Buffer &operator=(const Buffer &) = delete;
-  Buffer &operator=(Buffer &&other) noexcept {
-    // delete this object's handle
-    glDeleteBuffers(1, &handle);
-
-    // move handle out of other and into this
-    handle = other.handle;
-    other.handle = 0;
-
-    return *this;
-  }
-
-  // accept any contiguous range of data
-  void upload_data(std::ranges::contiguous_range auto data, GLenum usage) {
-    // calculate buffer size in bytes
-    GLsizeiptr size{
-        std::ranges::size(data) *
-        sizeof(std::ranges::range_value_t<decltype(data)>)
-    };
-    // get constant pointer to beginning of data
-    auto begin{std::ranges::cdata(data)};
-    glNamedBufferData(handle, size, begin, usage);
-  }
-
-  // implicit conversion to GLuint OpenGL handle
-  operator GLuint() const { return handle; }
-};
-
-class VAO {
-  GLuint handle{};
-
-public:
-  VAO() { glCreateVertexArrays(1, &handle); }
-  VAO(const VAO &) = delete;
-  VAO(VAO &&other) noexcept : handle(other.handle) { other.handle = 0; }
-  ~VAO() { glDeleteVertexArrays(1, &handle); }
-
-  VAO &operator=(const VAO &) = delete;
-  VAO &operator=(VAO &&other) noexcept {
-    // delete this object's handle
-    glDeleteVertexArrays(1, &handle);
-
-    // move handle out of other and into this
-    handle = other.handle;
-    other.handle = 0;
-
-    return *this;
-  }
-
-  // implicit conversion to GLuint OpenGL handle
-  operator GLuint() const { return handle; }
-};
-
-typedef struct {
-  uint count;
-  uint instanceCount;
-  uint firstIndex;
-  int baseVertex;
-  uint baseInstance;
-} DrawElementsIndirectCommand;
-} // namespace gl
 
 enum class AttribLocation : GLuint {
   position = 0,
@@ -464,7 +271,7 @@ void draw_mesh(const Mesh &mesh) {
 int main() {
   GLFWContext context{};
 
-  auto window{glfwCreateWindow(800, 600, "Shooty", nullptr, nullptr)};
+  auto window{glfwCreateWindow(800, 600, "Doodle", nullptr, nullptr)};
 
   glfwMakeContextCurrent(window);
   gladLoadGL(glfwGetProcAddress);

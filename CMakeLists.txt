@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.30)
-project(shooty)
+project(doodle)
 
 set(CMAKE_CXX_STANDARD 23)
 
@@ -20,7 +20,7 @@ FetchContent_Declare(glad
         GIT_REPOSITORY https://github.com/Dav1dde/glad
         GIT_TAG v2.0.8
         GIT_SHALLOW
-        SOURCE_SUBDIR  cmake
+        SOURCE_SUBDIR cmake
 )
 FetchContent_MakeAvailable(glad)
 
@@ -36,5 +36,9 @@ find_package(OpenGL REQUIRED)
 
 glad_add_library(glad REPRODUCIBLE EXCLUDE_FROM_ALL LOADER API gl:core=4.6)
 
-add_executable(shooty main.cpp)
-target_link_libraries(shooty PUBLIC glfw glad tomlplusplus::tomlplusplus)
+add_executable(doodle
+        doodle/gl.cpp
+        doodle/gl.h
+        doodle/main.cpp
+)
+target_link_libraries(doodle PUBLIC glfw glad tomlplusplus::tomlplusplus)
