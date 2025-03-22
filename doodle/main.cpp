@@ -96,6 +96,10 @@ std::string read_file(const fs::path &path) {
   std::ifstream stream;
   std::string output;
 
+  if (!exists(path)) {
+    throw std::runtime_error(std::format("File {} does not exist.", absolute(path).string()));
+  }
+
   // find file size
   stream.open(path);
   stream.seekg(0, std::ios_base::end);
