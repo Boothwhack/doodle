@@ -8,11 +8,19 @@
 #include <glad/gl.h>
 
 #include <GLFW/glfw3.h>
+#include <glm/mat4x4.hpp>
+#include <glm/vec3.hpp>
 #include <toml++/toml.hpp>
 
 #include "gl.h"
 
+#include <glm/ext/matrix_clip_space.hpp>
+#include <glm/ext/matrix_transform.hpp>
+
 namespace fs = std::filesystem;
+using std::cos;
+using std::fmod;
+using std::sin;
 
 class GLFWContext {
 public:
@@ -97,7 +105,9 @@ std::string read_file(const fs::path &path) {
   std::string output;
 
   if (!exists(path)) {
-    throw std::runtime_error(std::format("File {} does not exist.", absolute(path).string()));
+    throw std::runtime_error(
+        std::format("File {} does not exist.", absolute(path).string())
+    );
   }
 
   // find file size
@@ -272,6 +282,21 @@ void draw_mesh(const Mesh &mesh) {
   }
 }
 
+struct Camera {
+  float fov_y;
+  float aspect_ratio;
+  float near, far;
+
+  glm::vec3 position;
+
+  glm::mat4 to_matrix() const {
+    auto projection{glm::perspective(fov_y, aspect_ratio, near, far)};
+    auto view{translate(glm::mat4(1.0f), -position)};
+
+    return projection * view;
+  }
+};
+
 int main() {
   GLFWContext context{};
 
@@ -288,10 +313,33 @@ int main() {
   Material material{shader};
   auto mesh{load_mesh("triangle", material)};
 
+  Camera camera{
+      .fov_y = glm::pi<float>() * 0.25f,
+      .aspect_ratio = 800.0f / 600.0f,
+      .near = 0.1f,
+      .far = 100.0f,
+      .position = glm::vec3()
+  };
+
+  gl::Buffer ubo;
+
   while (!glfwWindowShouldClose(window)) {
     glClearColor(0.21, 0.2, 0.3, 1.0);
     glClear(GL_COLOR_BUFFER_BIT);
 
+    // calculates circular camera motion over 5 seconds
+    auto duration{5.0f};
+    auto radius{2.0f};
+    auto z{5.0f};
+
+    float time{fmod(static_cast<float>(glfwGetTime()), duration) / duration};
+    auto angle{time * 2.0f * glm::pi<float>()};
+    camera.position = glm::vec3(sin(angle) * radius, cos(angle) * radius, z);
+
+    auto mat{camera.to_matrix()};
+    ubo.upload_data(&mat, sizeof(mat), GL_DYNAMIC_DRAW);
+
+    glBindBufferBase(GL_UNIFORM_BUFFER, 0, ubo);
     draw_mesh(mesh);
 
     glfwPollEvents();
