@@ -95,9 +95,10 @@ struct Mesh {
   const Material &material;
   gl::VAO vao;
   std::vector<VertexBuffer> vertex_buffers;
-  size_t vector_count;
+  size_t vertex_count;
   Primitive primitive;
   std::optional<IndexBuffer> index_buffer{std::nullopt};
+  size_t index_count;
 };
 
 std::string read_file(const fs::path &path) {
@@ -251,9 +252,10 @@ Mesh load_mesh(std::string_view name, const Material &material) {
       .material = material,
       .vao = std::move(vao),
       .vertex_buffers = std::move(vertex_buffers),
-      .vector_count = 3,
+      .vertex_count = vertex_data.size(),
       .primitive = Primitive::triangles,
-      .index_buffer = std::move(index_buffer)
+      .index_buffer = std::move(index_buffer),
+      .index_count = index_data.size(),
   };
 }
 
@@ -264,7 +266,7 @@ void draw_mesh(const Mesh &mesh) {
   auto mode{static_cast<GLenum>(mesh.primitive)};
   if (mesh.index_buffer) {
     std::array commands = {gl::DrawElementsIndirectCommand{
-        .count = static_cast<unsigned int>(mesh.vector_count),
+        .count = static_cast<unsigned int>(mesh.index_count),
         .instanceCount = 1,
         .firstIndex = 0,
         .baseVertex = 0,
@@ -278,7 +280,7 @@ void draw_mesh(const Mesh &mesh) {
         0 // indicates structs are tightly packed
     );
   } else {
-    glDrawArrays(mode, 0, static_cast<GLint>(mesh.vector_count));
+    glDrawArrays(mode, 0, static_cast<GLint>(mesh.index_count));
   }
 }
 
