@@ -162,12 +162,12 @@ Shader load_shader(std::string_view name) {
       {VertexAttribProps{
           .location = AttribLocation::position,
           .type = AttribType::f32,
-          .size = 3 * sizeof(float),
+          .size = 3,
       }}
   );
 }
 
-static std::array<float, 4 * 3> vertex_data = {
+static std::array<float, 9> vertex_data = {
     0.5,
     -0.5,
     0.0,
@@ -196,7 +196,7 @@ Mesh load_mesh(std::string_view name, const Material &material) {
               .props = VertexAttribProps(
                   AttribLocation::position,
                   AttribType::f32,
-                  sizeof(float) * 3
+                  3 // number of float values in a vec3
               ),
               .offset = 0,
               .normalized = false,
